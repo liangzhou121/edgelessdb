@@ -44,7 +44,7 @@ Use these images to try the latest changes from the main branch:
 ## Build from source
 *Prerequisites*:
 * [Edgeless RT](https://github.com/edgelesssys/edgelessrt) is installed and sourced
-* Go 1.17 or newer
+* Go 1.26.1 or newer
 
 On Ubuntu 20.04 build with:
 ```sh

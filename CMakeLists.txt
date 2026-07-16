@@ -13,6 +13,7 @@ option(BUILD_TESTS "" ON)
 
 set(MARIADB_CMAKE_ARGS
   -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+  -DCMAKE_CXX_FLAGS=-include\ cstdint
   -DEDG_WITH_EDB=ON
   -DEDG_WITH_EROCKS=ON
   -DEDG_EDBDIR=${CMAKE_SOURCE_DIR}
@@ -103,7 +104,7 @@ ExternalProject_Add(mariadb
 
 set(MARIADB ${CMAKE_BINARY_DIR}/mariadb)
 
-set(MARIADB_LIBS
+set(MARIADB_LIBS_BASE
   ${MARIADB}/sql/libsql.a
   ${MARIADB}/sql/libsql_builtins.a
   ${MARIADB}/vio/libvio.a
@@ -111,8 +112,6 @@ set(MARIADB_LIBS
   ${MARIADB}/tpool/libtpool.a
   ${MARIADB}/storage/maria/libaria.a
   ${MARIADB}/mysys_ssl/libmysys_ssl.a
-  ssl
-  crypto
   ${MARIADB}/sql/libsql_sequence.a
   ${MARIADB}/sql/libwsrep.a
   ${MARIADB}/storage/csv/libcsv.a
@@ -121,7 +120,6 @@ set(MARIADB_LIBS
   ${MARIADB}/mysys/libmysys.a
   ${MARIADB}/dbug/libdbug.a
   ${MARIADB}/strings/libstrings.a
-  z
   ${MARIADB}/storage/myisammrg/libmyisammrg.a
   ${MARIADB}/plugin/type_geom/libtype_geom.a
   ${MARIADB}/plugin/type_inet/libtype_inet.a
@@ -131,8 +129,17 @@ set(MARIADB_LIBS
   ${MARIADB}/storage/rocksdb/librocksdb_se.a
   ${MARIADB}/storage/rocksdb/librocksdb_aux_lib.a
   ${MARIADB}/storage/rocksdb/librocksdblib.a
-  lz4
 )
+
+# For non-enclave: use system libraries
+set(MARIADB_LIBS ${MARIADB_LIBS_BASE} ssl crypto z lz4)
+
+# For enclave: use EdgelessRT's static OpenSSL 3.x libs
+set(MARIADB_ENCLAVE_LIBS ${MARIADB_LIBS_BASE}
+  /opt/edgelessrt/lib/openenclave/enclave/libopensslssl_3.a
+  /opt/edgelessrt/lib/openenclave/enclave/libopensslcrypto_3.a
+  /usr/lib/x86_64-linux-gnu/libz.a
+  /usr/lib/x86_64-linux-gnu/liblz4.a)
 
 set(MARIADB_LIBC -static-libgcc -static-libstdc++
   crypt m pthread dl rt)
@@ -222,7 +229,8 @@ target_link_libraries(edb-noenclave
 # obj containing the original function, rename the symbol, and link the obj before linking libcrypto.
 add_custom_command(OUTPUT x86_64cpuid.o
   DEPENDS /usr/lib/x86_64-linux-gnu/libcrypto.a
-  COMMAND ar x /usr/lib/x86_64-linux-gnu/libcrypto.a x86_64cpuid.o)
+  COMMAND ar x /usr/lib/x86_64-linux-gnu/libcrypto.a libcrypto-lib-x86_64cpuid.o
+  COMMAND mv libcrypto-lib-x86_64cpuid.o x86_64cpuid.o)
 add_custom_command(OUTPUT x86_64cpuid_.o
   DEPENDS x86_64cpuid.o
   COMMAND bbe -e 's/OPENSSL_rdtsc/OPENSSL_rdtsC/' x86_64cpuid.o > x86_64cpuid_.o)
@@ -252,7 +260,7 @@ target_link_libraries(edb-enclave
   openenclave::oehostresolver
   openenclave::oehostsock
   ${CMAKE_BINARY_DIR}/edb.a
-  ${MARIADB_LIBS})
+  ${MARIADB_ENCLAVE_LIBS})
 
 add_custom_command(
   OUTPUT edb-enclave.signed
@@ -273,7 +281,7 @@ if(BUILD_TESTS)
     src/syscall_test.cc
     src/syscall_file.cc
     src/syscall_handler.cc)
-  target_compile_options(syscall_test PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=all)
+  target_compile_options(syscall_test PRIVATE -fsanitize=address,undefined -fno-sanitize-recover=all -Wno-maybe-uninitialized)
   target_link_options(syscall_test PRIVATE -fsanitize=address,undefined -static-libasan)
   target_link_libraries(syscall_test openenclave::oe_includes)
 

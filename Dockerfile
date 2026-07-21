@@ -30,10 +30,8 @@ RUN git config --global http.proxy http://127.0.0.1:8118 && \
 
 # download edgelessdb codes
 ARG erttag=v0.5.2
-RUN git clone -b $erttag --depth=1 https://github.com/edgelesssys/edgelessrt && \
-  cd edgelessrt && git submodule update --init --depth=1 --progress --recursive
-RUN git clone --depth=1 https://github.com/liangzhou121/edgelessdb && \
-  cd edgelessdb && git submodule update --init --depth=1 --progress --recursive
+RUN git clone -b $erttag --depth=1 https://github.com/edgelesssys/edgelessrt
+RUN git clone --depth=1 https://github.com/liangzhou121/edgelessdb
 
 RUN mkdir ertbuild edbbuild
 
@@ -49,7 +47,7 @@ RUN cd edgelessdb && export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) && cd /
   && make -j`nproc` edb-enclave
 
 # sign edb
-ARG heapsize=1024
+ARG heapsize=4096
 ARG numtcs=64
 ARG production=OFF
 RUN --mount=type=secret,id=signingkey,dst=/edbbuild/private.pem,required=true \

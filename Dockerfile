@@ -28,24 +28,23 @@ ENV PATH=$PATH:$GOROOT/bin:$GOPATH/bin
 RUN git config --global http.proxy http://127.0.0.1:8118 && \
   git config --global https.proxy http://127.0.0.1:8118
 
-# download edgelessdb codes
-ARG erttag=v0.5.2
-RUN git clone -b $erttag --depth=1 https://github.com/edgelesssys/edgelessrt
-RUN git clone --depth=1 https://github.com/liangzhou121/edgelessdb
-
 RUN mkdir ertbuild edbbuild
 
+# download ert codes
+ARG erttag=v0.5.2
+RUN git clone -b $erttag --depth=1 https://github.com/edgelesssys/edgelessrt
 # install ert
 RUN cd edgelessrt && export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) && cd /ertbuild \
   && cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF /edgelessrt \
   && ninja install
 
+# download edgelessdb codes
+RUN git clone --depth=1 https://github.com/liangzhou121/edgelessdb
 # build edb
 RUN cd edgelessdb && export SOURCE_DATE_EPOCH=$(git log -1 --pretty=%ct) && cd /edbbuild \
   && . /opt/edgelessrt/share/openenclave/openenclaverc \
   && cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=OFF /edgelessdb \
   && make -j`nproc` edb-enclave
-
 # sign edb
 ARG heapsize=4096
 ARG numtcs=64

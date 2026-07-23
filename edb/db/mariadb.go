@@ -296,6 +296,18 @@ init-file=` + filepath.Join(d.internalPath, filenameInit) + `
 func (d *Mariadb) configureStart() error {
 	host, port := splitHostPort(d.externalAddress, "3306")
 
+	// MariaDB's thread-pool-size (number of thread groups) defaults to the
+	// host's CPU count, and each group is guaranteed at least 2 worker threads
+	// no matter what. On a host with many CPUs this can force far more OS
+	// threads into existence than the enclave's fixed TCS budget can support,
+	// crashing the enclave with OE_OUT_OF_THREADS. Cap it explicitly instead.
+	threadPoolSize := d.maxPoolThreads / 2
+	if threadPoolSize > 8 {
+		threadPoolSize = 8
+	} else if threadPoolSize < 1 {
+		threadPoolSize = 1
+	}
+
 	cnf := `
 [mysqld]
 datadir=` + d.externalPath + `
@@ -307,6 +319,7 @@ port=` + port + `
 skip-name-resolve
 thread-handling=pool-of-threads
 thread-pool-max-threads=` + strconv.Itoa(d.maxPoolThreads) + `
+thread-pool-size=` + strconv.Itoa(threadPoolSize) + `
 require-secure-transport=1
 ssl-ca = "` + filepath.Join(d.internalPath, filenameCA) + `"
 ssl-cert = "` + filepath.Join(d.internalPath, filenameCert) + `"

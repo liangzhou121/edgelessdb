@@ -302,8 +302,8 @@ func (d *Mariadb) configureStart() error {
 	// threads into existence than the enclave's fixed TCS budget can support,
 	// crashing the enclave with OE_OUT_OF_THREADS. Cap it explicitly instead.
 	threadPoolSize := d.maxPoolThreads / 2
-	if threadPoolSize > 8 {
-		threadPoolSize = 8
+	if threadPoolSize > 16 {
+		threadPoolSize = 16
 	} else if threadPoolSize < 1 {
 		threadPoolSize = 1
 	}
@@ -320,10 +320,19 @@ skip-name-resolve
 thread-handling=pool-of-threads
 thread-pool-max-threads=` + strconv.Itoa(d.maxPoolThreads) + `
 thread-pool-size=` + strconv.Itoa(threadPoolSize) + `
+thread-pool-oversubscribe=2
+thread-pool-stall-limit=200
+thread-pool-idle-timeout=30
+thread-pool-prio-kickup-timer=500
 require-secure-transport=1
 ssl-ca = "` + filepath.Join(d.internalPath, filenameCA) + `"
 ssl-cert = "` + filepath.Join(d.internalPath, filenameCert) + `"
 ssl-key = "` + filepath.Join(d.internalPath, filenameKey) + `"
+rocksdb_max_background_jobs=4
+rocksdb_max_subcompactions=2
+rocksdb_default_cf_options=level0_file_num_compaction_trigger=8;level0_slowdown_writes_trigger=24;level0_stop_writes_trigger=40
+rocksdb_bytes_per_sync=1048576
+rocksdb_delayed_write_rate=67108864
 `
 	if d.debug {
 		// If nothing is specified ONLY error-log is printed on stderr

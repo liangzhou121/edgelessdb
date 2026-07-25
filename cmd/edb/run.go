@@ -16,6 +16,9 @@
 package main
 
 import (
+	"os"
+	"strconv"
+
 	"github.com/edgelesssys/edgelessdb/edb/core"
 	"github.com/edgelesssys/edgelessdb/edb/db"
 	"github.com/edgelesssys/edgelessdb/edb/server"
@@ -26,8 +29,16 @@ import (
 func run(cfg core.Config, isMarble bool, internalPath string, internalAddress string) {
 	var rt executionEnv
 
-	// There are quite a few MariaDB and RocksDB helper threads in addition to pool threads. Let's be rather generous here.
-	maxPoolThreads := rt.GetNumTCS() - 32
+	// Reserve TCS for MariaDB helper threads (main, signal, listener, timeout),
+	// RocksDB background jobs (compaction, flush), and thread group managers.
+	// Default 24 leaves headroom for typical configurations; tune via EDG_TCS_RESERVE.
+	tcsReserve := 24
+	if envReserve := os.Getenv("EDG_TCS_RESERVE"); envReserve != "" {
+		if v, err := strconv.Atoi(envReserve); err == nil && v >= 16 && v <= 32 {
+			tcsReserve = v
+		}
+	}
+	maxPoolThreads := rt.GetNumTCS() - tcsReserve
 
 	db, err := db.NewMariadb(internalPath, cfg.DataPath, internalAddress, cfg.DatabaseAddress, cfg.CertificateDNSName, cfg.LogDir, cfg.Debug, isMarble, mariadbd{}, maxPoolThreads)
 	if err != nil {

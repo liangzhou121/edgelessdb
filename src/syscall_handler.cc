@@ -108,7 +108,7 @@ std::vector<std::string> SyscallHandler::Dir(std::string_view pathname) const {
   vector<string> result;
 
   {
-    const lock_guard lock(mutex_);
+    const shared_lock lock(mutex_);
     if (is_db)
       result = store_->GetKeys(kCfNameDb, {});
     else
@@ -132,7 +132,7 @@ size_t SyscallHandler::Read(std::string_view path, void* buf, size_t count, size
   optional<string> value;
 
   {
-    const lock_guard lock(mutex_);
+    const shared_lock lock(mutex_);
     value = store_->Get(cf, path);
   }
 
@@ -167,7 +167,7 @@ void SyscallHandler::Write(std::string_view path, std::string_view buf, size_t o
 
 size_t SyscallHandler::Size(std::string_view path) const {
   const string_view cf = GetCf(path);
-  const lock_guard lock(mutex_);
+  const shared_lock lock(mutex_);
   return store_->Get(cf, path).value_or(string()).size();
 }
 
@@ -216,7 +216,7 @@ std::optional<int> SyscallHandler::Stat(const char* pathname, long statbuf) cons
   optional<string> value;
 
   {
-    const lock_guard lock(mutex_);
+    const shared_lock lock(mutex_);
     value = store_->Get(cf, path);
   }
 
@@ -305,6 +305,6 @@ std::optional<int> SyscallHandler::Unlink(const char* pathname) {
 
 bool SyscallHandler::Exists(std::string_view path) const {
   const string_view cf = GetCf(path);
-  const lock_guard lock(mutex_);
+  const shared_lock lock(mutex_);
   return store_->Get(cf, path).has_value();
 }

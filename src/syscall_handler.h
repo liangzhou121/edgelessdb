@@ -15,7 +15,7 @@
 
 #pragma once
 
-#include <mutex>
+#include <shared_mutex>
 #include <optional>
 #include <string_view>
 
@@ -57,7 +57,7 @@ class SyscallHandler final {
   bool Exists(std::string_view path) const;
 
   StorePtr store_;
-  mutable std::mutex mutex_;
+  mutable std::shared_mutex mutex_;
 };
 
 }  // namespace edb
